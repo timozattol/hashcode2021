@@ -1,9 +1,12 @@
 import os
+from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Dict
 
 INPUT_PATH = "input"
 OUTPUT_PATH = "output"
+
+DURATION = 1
 
 
 @dataclass(frozen=True)
@@ -31,9 +34,21 @@ class Problem:
     cars: List[Car] = field(repr=False)
 
 
+@dataclass
+class StreetGreenDuration:
+    street_name: str
+    duration: int
+
+
+@dataclass
+class Schedule:
+    intersection_index: int
+    street_green_duration: List[StreetGreenDuration]
+
+
 @dataclass(frozen=True)
 class Solution:
-    delivered_team_pizza: List[Street]  # TODO
+    schedules: List[Schedule]
 
 
 def load_problem(filename: str):
@@ -81,23 +96,37 @@ def load_problems():
 
 
 def solve(problem: Problem):
-    pass
+    intersection_streets: Dict[int, List[Street]] = defaultdict(list)
 
-    # return Solution()
+    for street in problem.streets:
+        intersection = street.end
+
+        intersection_streets[intersection].append(street)
+
+    schedules = []
+
+    for intersection_index, incoming_streets in intersection_streets.items():
+        street_green_duration = [StreetGreenDuration(street.name, DURATION) for street in
+                                 incoming_streets]
+        schedules.append(Schedule(intersection_index, street_green_duration))
+
+    return Solution(schedules=schedules)
 
 
 def write_solution(problem: Problem, solution: Solution):
-    pass
-    # with open(os.path.join(OUTPUT_PATH, f"{problem.name}.out"), "w") as f:
-    #     lines = list()
-    #     lines.append(str(len(solution.delivered_team_pizza)))
-    #
-    #     for delivered_pizza_team in solution.delivered_team_pizza:
-    #         pizza_indices = [str(pizza.index) for pizza in delivered_pizza_team.pizzas]
-    #         pizza_indices_str = " ".join(pizza_indices)
-    #         lines.append(f"{len(pizza_indices)} {pizza_indices_str}")
-    #
-    #     f.writelines(f"{line}\n" for line in lines)
+    with open(os.path.join(OUTPUT_PATH, f"{problem.name}.out"), "w") as f:
+        lines = list()
+
+        lines.append(str(len(solution.schedules)))
+
+        for schedule in solution.schedules:
+            lines.append(str(schedule.intersection_index))
+            lines.append(str(len(schedule.street_green_duration)))
+
+            for street_green_duration in schedule.street_green_duration:
+                lines.append(f"{street_green_duration.street_name} {street_green_duration.duration}")
+
+        f.writelines(f"{line}\n" for line in lines)
 
 
 def main():
@@ -106,10 +135,9 @@ def main():
     for problem in problems:
         print(f"Solving problem {problem.name}")
 
-        print(problem)
+        solution = solve(problem)
 
-        # solution = solve(problem)
-        # write_solution(problem, solution)
+        write_solution(problem, solution)
 
 
 if __name__ == '__main__':
