@@ -1,7 +1,7 @@
 import os
 from collections import defaultdict, Counter
 from dataclasses import dataclass, field
-from typing import List, Dict
+from typing import List, Dict, Tuple
 
 import numpy as np
 import pandas as pd
@@ -10,6 +10,8 @@ INPUT_PATH = "input"
 OUTPUT_PATH = "output"
 
 DURATION = 1
+
+SCALING_FUNCTION = np.sqrt
 
 
 @dataclass(frozen=True)
@@ -106,11 +108,34 @@ def solve(problem: Problem):
 
         intersection_streets[intersection].append(street)
 
+    street_busyness: Counter[str] = Counter()
+
+    for car in problem.cars:
+        street_busyness.update(car.visited_street_names)
+
     schedules = []
 
     for intersection_index, incoming_streets in intersection_streets.items():
-        street_green_duration = [StreetGreenDuration(street.name, DURATION) for street in
-                                 incoming_streets]
+        streets_with_business: List[Tuple[Street, int]] = [(incoming_street, street_busyness.get(incoming_street.name, 0))
+                                                           for incoming_street in incoming_streets]
+
+        streets_with_business = [street_with_business for street_with_business in streets_with_business if
+                                 street_with_business[1] != 0]
+
+        if len(streets_with_business) == 0:
+            continue
+
+        street_weights = np.array([busyness for street, busyness in streets_with_business])
+
+        street_weights = SCALING_FUNCTION(street_weights)
+        street_weight_min = np.min(street_weights)
+
+        street_weights = street_weights / street_weight_min
+        street_weights = np.ceil(street_weights)
+
+        streets = [street for street, _ in streets_with_business]
+
+        street_green_duration = [StreetGreenDuration(street.name, int(weight)) for street, weight in zip(streets, street_weights)]
         schedules.append(Schedule(intersection_index, street_green_duration))
 
     return Solution(schedules=schedules)
@@ -171,11 +196,10 @@ def main():
         print(f"Solving problem {problem.name}")
         print(problem)
 
-        print_metrics(problem)
-        # solution = solve(problem)
+        #print_metrics(problem)
+        solution = solve(problem)
 
-        # write_solution(problem, solution)
-
+        write_solution(problem, solution)
 
 if __name__ == '__main__':
     main()
