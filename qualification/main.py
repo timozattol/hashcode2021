@@ -1,7 +1,10 @@
 import os
-from collections import defaultdict
+from collections import defaultdict, Counter
 from dataclasses import dataclass, field
 from typing import List, Dict
+
+import numpy as np
+import pandas as pd
 
 INPUT_PATH = "input"
 OUTPUT_PATH = "output"
@@ -19,7 +22,7 @@ class Street:
 
 @dataclass(frozen=True)
 class Car:
-    visited_roads: List[str]
+    visited_street_names: List[str]
 
 
 @dataclass(frozen=True)
@@ -70,8 +73,8 @@ def load_problem(filename: str):
         cars = []
 
         for car_index, line in enumerate(lines[1 + street_count:]):
-            visited_roads = line.split()[1:]
-            cars.append(Car(visited_roads=visited_roads))
+            visited_street_names = line.split()[1:]
+            cars.append(Car(visited_street_names=visited_street_names))
 
         problem_name = filename[:-3]
 
@@ -129,15 +132,49 @@ def write_solution(problem: Problem, solution: Solution):
         f.writelines(f"{line}\n" for line in lines)
 
 
+def print_path_lengths(problem: Problem):
+    streets_dict = dict()
+
+    for street in problem.streets:
+        streets_dict[street.name] = street
+
+    path_lengths = []
+
+    for car in problem.cars:
+        street_lengths = [streets_dict[visited_street_name].length for visited_street_name in car.visited_street_names]
+        path_length = np.array(street_lengths).sum()
+        path_lengths.append(path_length)
+
+    path_lengths_series = pd.Series(path_lengths, name="car_path_lengths")
+
+    print(path_lengths_series.describe())
+
+
+def print_most_busy_streets(problem: Problem):
+    street_counter = Counter()
+
+    for car in problem.cars:
+        street_counter.update(car.visited_street_names)
+
+    print(street_counter.most_common(10))
+
+
+def print_metrics(problem: Problem):
+    print_path_lengths(problem)
+    print_most_busy_streets(problem)
+
+
 def main():
     problems = load_problems()
 
     for problem in problems:
         print(f"Solving problem {problem.name}")
+        print(problem)
 
-        solution = solve(problem)
+        print_metrics(problem)
+        # solution = solve(problem)
 
-        write_solution(problem, solution)
+        # write_solution(problem, solution)
 
 
 if __name__ == '__main__':
